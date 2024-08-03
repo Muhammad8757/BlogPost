@@ -37,7 +37,6 @@ class Post(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    is_favorite = models.BooleanField(default=False)
 
 class Comment(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
@@ -46,5 +45,7 @@ class Comment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Favorite(models.Model):
+    peoples_grade = models.IntegerField(default=0)
+    grade = models.IntegerField(default=0)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)

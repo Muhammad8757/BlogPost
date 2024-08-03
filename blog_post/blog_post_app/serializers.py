@@ -20,13 +20,13 @@ class UserSerializer(serializers.ModelSerializer):
 class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
-        fields = ['id', 'title', 'content', 'created_at', 'is_favorite']
+        fields = ['id', 'title', 'content', 'created_at']
     
     def create(self, validated_data):
         user = self.context['user']
-        category = Post.objects.create(**validated_data, user=user)
-        category.save()
-        return category
+        post = Post.objects.create(**validated_data, user=user)
+        post.save()
+        return post
 
 class CommentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -35,18 +35,20 @@ class CommentSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context['user']
-        category = Comment.objects.create(**validated_data, user=user)
-        category.save()
-        return category
+        comment = Comment.objects.create(**validated_data, user=user)
+        comment.save()
+        return comment
     
+
 class FavoriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Favorite
-        fields = ['id', 'post']
+        fields = ['id', 'post', 'grade', 'peoples_grade']
     
     def create(self, validated_data):
         user = self.context['user']
-        category = Favorite.objects.create(**validated_data ,user=user)
-        category.save()
-        return category
+        peoples_grade = validated_data.get('peoples_grade', 0)
+        favorite = Favorite.objects.create(**validated_data ,user=user,peoples_grade=peoples_grade+1)
+        favorite.save()
+        return favorite
     
