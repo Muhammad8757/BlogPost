@@ -4,24 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('blog_post_app', '0005_remove_post_average_mark'),
+        ("blog_post_app", "0005_remove_post_average_mark"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='post',
-            name='peoples_grade',
+            model_name="post",
+            name="peoples_grade",
         ),
         migrations.AddField(
-            model_name='favorite',
-            name='peoples_grade',
+            model_name="favorite",
+            name="peoples_grade",
             field=models.IntegerField(default=0),
         ),
         migrations.AlterField(
-            model_name='favorite',
-            name='grade',
+            model_name="favorite",
+            name="grade",
             field=models.IntegerField(default=0),
         ),
     ]

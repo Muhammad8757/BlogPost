@@ -4,14 +4,13 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('blog_post_app', '0004_remove_post_grade_favorite_grade'),
+        ("blog_post_app", "0004_remove_post_grade_favorite_grade"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='post',
-            name='average_mark',
+            model_name="post",
+            name="average_mark",
         ),
     ]

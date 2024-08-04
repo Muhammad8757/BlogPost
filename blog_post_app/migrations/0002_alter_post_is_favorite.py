@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('blog_post_app', '0001_initial'),
+        ("blog_post_app", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='post',
-            name='is_favorite',
+            model_name="post",
+            name="is_favorite",
             field=models.IntegerField(default=False),
         ),
     ]

@@ -4,19 +4,21 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('blog_post_app', '0003_rename_is_favorite_post_average_mark_post_grade_and_more'),
+        (
+            "blog_post_app",
+            "0003_rename_is_favorite_post_average_mark_post_grade_and_more",
+        ),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='post',
-            name='grade',
+            model_name="post",
+            name="grade",
         ),
         migrations.AddField(
-            model_name='favorite',
-            name='grade',
+            model_name="favorite",
+            name="grade",
             field=models.IntegerField(default=0),
             preserve_default=False,
         ),
