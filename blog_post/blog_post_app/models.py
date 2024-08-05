@@ -49,3 +49,7 @@ class Favorite(models.Model):
     grade = models.IntegerField(default=0)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+class Featured(models.Model):
+    posts = models.ManyToManyField(Post)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)

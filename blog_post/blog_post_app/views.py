@@ -1,12 +1,12 @@
-from rest_framework import mixins, status
+from rest_framework import mixins, status, viewsets
 from rest_framework.viewsets import GenericViewSet
-from .serializers import PostSerializer, UserSerializer, CommentSerializer, FavoriteSerializer
-from .models import Post, User, Comment, Favorite
+from .serializers import FeaturedSerializer, PostSerializer, UserSerializer, CommentSerializer, FavoriteSerializer
+from .models import Post, User, Comment, Favorite, Featured
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.decorators import action
 
 
@@ -33,20 +33,16 @@ class UserAPIView(mixins.CreateModelMixin,
         }, status=status.HTTP_201_CREATED)
     
     @extend_schema(
-        request=UserSerializer,
-        responses={
-            200: OpenApiResponse(
-                response=UserSerializer,
-                description="Successful login"
-            ),
-            400: 'Invalid input',
-            404: 'User not found'
-        }
+    parameters=[
+        OpenApiParameter(name='phone_number',location=OpenApiParameter.QUERY, required=True, type=int),
+        OpenApiParameter(name='password',location=OpenApiParameter.QUERY, required=True, type=str),
+        ],
+        request=None
     )
     @action(detail=False, methods=["post"])
     def login(self, request):
-        phone_number = request.data.get('phone_number')
-        password = request.data.get('password')
+        phone_number = request.query_params.get('phone_number', None)
+        password = request.query_params.get('password', None)
 
         if phone_number and password:
             try:
@@ -106,14 +102,16 @@ class PostAPIView(mixins.RetrieveModelMixin,
         request=None
     )
     def create(self, request):
-        context = self.get_serializer_context()
-        title = request.query_params.get('title', None)
-        content = request.query_params.get('content', None)
-        serializer = PostSerializer(data={'title': title, 'content': content}, context=context)
-        serializer.is_valid(raise_exception=True)
-        transaction = serializer.save()
-        return Response(PostSerializer(transaction).data, status=status.HTTP_201_CREATED)
-    
+        if request.user == User.objects.get(id=1):
+            context = self.get_serializer_context()
+            title = request.query_params.get('title', None)
+            content = request.query_params.get('content', None)
+            serializer = PostSerializer(data={'title': title, 'content': content}, context=context)
+            serializer.is_valid(raise_exception=True)
+            transaction = serializer.save()
+            return Response(PostSerializer(transaction).data, status=status.HTTP_201_CREATED)
+        else:
+            raise Exception("not enough rights to create a post")
     
 class CommentAPIView(mixins.CreateModelMixin,
                     mixins.RetrieveModelMixin,
@@ -173,3 +171,38 @@ class FavoriteAPIView(mixins.RetrieveModelMixin,
         if is_rated:
             raise Exception("You can't rate one post more than once.")
         
+class FeaturedAPIView(mixins.RetrieveModelMixin,
+                   mixins.UpdateModelMixin,
+                   mixins.DestroyModelMixin,
+                   mixins.ListModelMixin,
+                   GenericViewSet):
+    serializer_class = FeaturedSerializer
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['user'] = self.request.user
+        return context
+        
+    @extend_schema(
+    parameters=[
+        OpenApiParameter(name='post',location=OpenApiParameter.QUERY, required=True, type=int),
+        ],
+        request=None
+    )
+    def create(self, request):
+        post_id = request.query_params.getlist('post', None)
+        serializer = FeaturedSerializer(data={'posts': post_id, 'user': request.user.id}, context={'user': request.user})
+        serializer.is_valid(raise_exception=True)
+        featured = serializer.save()
+        return Response(
+            {
+                'success': FeaturedSerializer(featured).data
+            }
+        )
+
+    def get_queryset(self):
+        return Featured.objects.filter(user=self.request.user)
+    
+    

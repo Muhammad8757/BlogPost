@@ -4,8 +4,7 @@ from django.urls import include, path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
-
-from blog_post_app.views import PostAPIView, UserAPIView, CommentAPIView, FavoriteAPIView
+from blog_post_app.views import FeaturedAPIView, PostAPIView, UserAPIView, CommentAPIView, FavoriteAPIView
 
 
 
@@ -14,6 +13,7 @@ router.register(r'users', UserAPIView, basename='user')
 router.register(r'comments', CommentAPIView, basename='comments')
 router.register(r'post', PostAPIView, basename='post')
 router.register(r'favorite', FavoriteAPIView, basename='favorite')
+router.register(r'featured', FeaturedAPIView, basename='featured')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

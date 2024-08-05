@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Post, Comment, Favorite
+from .models import User, Post, Comment, Favorite, Featured
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -51,4 +51,16 @@ class FavoriteSerializer(serializers.ModelSerializer):
         favorite = Favorite.objects.create(**validated_data ,user=user,peoples_grade=peoples_grade+1)
         favorite.save()
         return favorite
+
+class FeaturedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Featured
+        fields = ['id', 'posts', 'user']
     
+    def create(self, validated_data):
+        user = self.context.get('user')
+        validated_data['user'] = user
+        posts = validated_data.pop('posts', None)
+        featured = Featured.objects.create(**validated_data)
+        featured.posts.set(posts)
+        return featured
