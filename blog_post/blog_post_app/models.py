@@ -51,12 +51,12 @@ class Comment(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
-class Favorite(models.Model):
+class Liked(models.Model):
     peoples_grade = models.IntegerField(default=0)
     grade = models.IntegerField(default=0)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
-class Featured(models.Model):
+class Favorite(models.Model):
     posts = models.ManyToManyField(Post)
     user = models.ForeignKey(User, on_delete=models.CASCADE)

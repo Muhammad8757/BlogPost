@@ -1,7 +1,7 @@
 from rest_framework import mixins, status
 from rest_framework.viewsets import GenericViewSet
-from .serializers import FeaturedSerializer, PostSerializer, UserSerializer, CommentSerializer, FavoriteSerializer
-from .models import Post, User, Comment, Favorite, Featured
+from .serializers import FavoriteSerializer, PostSerializer, UserSerializer, CommentSerializer, LikedSerializer
+from .models import Post, User, Comment, Liked, Favorite
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -11,8 +11,16 @@ from rest_framework.decorators import action, permission_classes, authentication
 
 def is_auth(request):
     if not request.user.id:
-        raise Exception("user not authentificated")
+        return Response({"detail": "user not authentificated."}, status=status.HTTP_400_BAD_REQUEST)
 
+class AuthenticatedMixin:
+    def get_permissions(self):
+        if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            return [permission() for permission in [IsAuthenticated]]
+        return []
+
+
+@extend_schema(tags=['User'])
 class UserAPIView(mixins.CreateModelMixin,
                   GenericViewSet):
     queryset = User.objects.all()
@@ -55,7 +63,8 @@ class UserAPIView(mixins.CreateModelMixin,
         else:
             return Response({"detail": "Phone number and password are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-class PostAPIView(mixins.DestroyModelMixin,
+@extend_schema(tags=['Post'])
+class PostAPIView(AuthenticatedMixin,
                    mixins.ListModelMixin,
                    GenericViewSet):
     queryset = Post.objects.all()
@@ -63,8 +72,8 @@ class PostAPIView(mixins.DestroyModelMixin,
     
     def average_rating(self):
         posts = Post.objects.filter(user=1).values_list('id', flat=True)
-        grade = Favorite.objects.filter(post_id__in=posts).values_list('grade', flat=True)
-        peoples = Favorite.objects.filter(post_id__in=posts).values_list('peoples_grade', flat=True)
+        grade = Liked.objects.filter(post_id__in=posts).values_list('grade', flat=True)
+        peoples = Liked.objects.filter(post_id__in=posts).values_list('peoples_grade', flat=True)
         grade_list = list(grade)
         peoples_list = list(peoples)
         if not peoples:
@@ -79,8 +88,6 @@ class PostAPIView(mixins.DestroyModelMixin,
         ],
         request=None
     )
-    @authentication_classes([JWTAuthentication])
-    @permission_classes([IsAuthenticated])
     def update(self, request, **kwargs): #этот метод из исходника класса UpdateModelMixin
         if request.user == User.objects.get(id=1):
             is_auth(request)
@@ -96,7 +103,7 @@ class PostAPIView(mixins.DestroyModelMixin,
                 instance._prefetched_objects_cache = {}
             return Response(serializer.data)
         else:
-            raise Exception("not enough rights to update a post")
+            return Response({"detail": "not enough rights to update a post."}, status=status.HTTP_400_BAD_REQUEST)
         
 
     @extend_schema(
@@ -107,8 +114,6 @@ class PostAPIView(mixins.DestroyModelMixin,
         ],
         request=None
     )
-    @authentication_classes([JWTAuthentication])
-    @permission_classes([IsAuthenticated])
     def create(self, request):
         if request.user == User.objects.get(id=1):
             is_auth(request)
@@ -120,7 +125,7 @@ class PostAPIView(mixins.DestroyModelMixin,
             post = serializer.save()
             return Response(PostSerializer(post).data, status=status.HTTP_201_CREATED)
         else:
-            raise Exception("not enough rights to create a post")
+            return Response({"detail": "not enough rights to create a post."}, status=status.HTTP_400_BAD_REQUEST)
         
     def list(self, request):
         posts = Post.objects.all()
@@ -129,7 +134,7 @@ class PostAPIView(mixins.DestroyModelMixin,
             "posts": self.get_serializer(posts, many=True).data,
             'raiting': raiting,
             'comments': CommentSerializer(Comment.objects.all(), many=True).data,
-            'rated': FavoriteSerializer(Favorite.objects.all(), many=True).data
+            'rated': LikedSerializer(Liked.objects.all(), many=True).data
             })
     
     def retrieve(self, request, *args, **kwargs):
@@ -138,12 +143,20 @@ class PostAPIView(mixins.DestroyModelMixin,
             {
                 'post': PostSerializer(instance).data,
                 'comment': CommentSerializer(Comment.objects.filter(post=instance), many=True).data,
-                'liked': FavoriteSerializer(Favorite.objects.filter(post=instance), many=True).data,
+                'liked': LikedSerializer(Liked.objects.filter(post=instance), many=True).data,
             })
     
+    def destroy(self, request, *args, **kwargs):
+        if request.user == User.objects.get(id=1):
+            instance = self.get_object()
+            self.perform_destroy(instance)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response({"detail": "not enough rights to delete a post."}, status=status.HTTP_400_BAD_REQUEST)
 
-    
-class CommentAPIView(mixins.RetrieveModelMixin,
+
+@extend_schema(tags=['Comment'])
+class CommentAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
                     mixins.DestroyModelMixin,
                     mixins.ListModelMixin,
                     GenericViewSet):
@@ -157,27 +170,23 @@ class CommentAPIView(mixins.RetrieveModelMixin,
         ],
         request=None
     )
-    @authentication_classes([JWTAuthentication])
-    @permission_classes([IsAuthenticated])
     def update(self, request, *args, **kwargs):
         is_auth(request)
         content = request.query_params.get('content', None)
         post = request.query_params.get('post', None)
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = CommentSerializer(instance, data={'content': content, 'post': post,'user': request.user.id}, partial=partial)
+        serializer = CommentSerializer(instance, data={'content': content, 'post': post, 'user': request.user.id}, partial=partial)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         if getattr(instance, '_prefetched_objects_cache', None):
             instance._prefetched_objects_cache = {}
         return Response(serializer.data)
-    
-    @authentication_classes([JWTAuthentication])
-    @permission_classes([IsAuthenticated])
+
     @extend_schema(
-    parameters=[
-        OpenApiParameter(name='post',location=OpenApiParameter.QUERY, required=True, type=int),
-        OpenApiParameter(name='content',location=OpenApiParameter.QUERY, required=True, type=str),
+        parameters=[
+            OpenApiParameter(name='post', location=OpenApiParameter.QUERY, required=True, type=int),
+            OpenApiParameter(name='content', location=OpenApiParameter.QUERY, required=True, type=str),
         ],
         request=None
     )
@@ -193,16 +202,14 @@ class CommentAPIView(mixins.RetrieveModelMixin,
                 'success': CommentSerializer(favorite).data
             }
         )
-
-class FavoriteAPIView(mixins.RetrieveModelMixin,
+@extend_schema(tags=['Liked'])
+class LikedVAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
                    mixins.DestroyModelMixin,
                    mixins.ListModelMixin,
                    GenericViewSet):
-    serializer_class = FavoriteSerializer
-    
-    def get_queryset(self):
-        return Favorite.objects.filter(user=self.request.user)
-    
+    queryset = Liked.objects.all()
+    serializer_class = LikedSerializer
+
     @extend_schema(
     parameters=[
         OpenApiParameter(name='grade',location=OpenApiParameter.QUERY, required=True, type=int),
@@ -210,33 +217,28 @@ class FavoriteAPIView(mixins.RetrieveModelMixin,
         ],
         request=None
     )
-    @authentication_classes([JWTAuthentication])
-    @permission_classes([IsAuthenticated])
     def create(self, request):
         is_auth(request)
         grade = request.query_params.get('grade', None)
         post = request.query_params.get('post', None)
-        serializer = FavoriteSerializer(data={'grade': grade, 'post': post, 'user': request.user.id})
+        serializer = LikedSerializer(data={'grade': grade, 'post': post, 'user': request.user.id})
         serializer.is_valid(raise_exception=True)
-        self.is_rated_user(request)
-        favorite = serializer.save()
+        is_rated = Liked.objects.filter(user_id=self.request.user, post_id=post).exists()
+        if is_rated:
+            return Response({"detail": "You can't rate a post more than once."}, status=status.HTTP_400_BAD_REQUEST)
+        liked = serializer.save()
         return Response(
             {
-                'success': FavoriteSerializer(favorite).data
+                'success': LikedSerializer(liked).data
             }
-        )
-        
-    def is_rated_user(self, request):
-        post_id_from_request = request.query_params.get('post')
-        is_rated = Favorite.objects.filter(user_id=self.request.user, post_id=post_id_from_request).exists()
-        if is_rated:
-            raise Exception("You can't rate one post more than once.")
-        
-class FeaturedAPIView(mixins.RetrieveModelMixin,
+        )        
+    
+@extend_schema(tags=['Favorite'])
+class FavoriteAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
                    mixins.DestroyModelMixin,
                    mixins.ListModelMixin,
                    GenericViewSet):
-    serializer_class = FeaturedSerializer
+    serializer_class = FavoriteSerializer
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -253,18 +255,18 @@ class FeaturedAPIView(mixins.RetrieveModelMixin,
     @permission_classes([IsAuthenticated])
     def create(self, request):
         post_id = request.query_params.get('post')
-        featured = Featured.objects.filter(user=request.user).first()
+        favorite = Favorite.objects.filter(user=request.user).first()
         
-        if featured and featured.posts.filter(id=post_id).exists():
-            raise Exception("You can't favorite a post twice")
+        if favorite and favorite.posts.filter(id=post_id).exists():
+            return Response({"detail": "You can't favorite a post twice."}, status=status.HTTP_400_BAD_REQUEST)
         
-        serializer = FeaturedSerializer(data={'posts': [post_id], 'user': request.user.id})
+        serializer = FavoriteSerializer(data={'posts': [post_id], 'user': request.user.id})
         serializer.is_valid(raise_exception=True)
-        featured_save = serializer.save()
+        favorite_save = serializer.save()
         
         return Response({
-            'success': FeaturedSerializer(featured_save).data
+            'success': FavoriteSerializer(favorite_save).data
         })
 
     def get_queryset(self):
-        return Featured.objects.filter(user=self.request.user)
+        return Favorite.objects.filter(user=self.request.user)

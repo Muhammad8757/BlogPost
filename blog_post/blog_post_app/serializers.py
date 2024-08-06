@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import User, Post, Comment, Favorite, Featured
+from .models import User, Post, Comment, Liked, Favorite
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -43,26 +44,26 @@ class CommentSerializer(serializers.ModelSerializer):
         return instance
     
 
-class FavoriteSerializer(serializers.ModelSerializer):
+class LikedSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Favorite
+        model = Liked
         fields = ['id', 'post', 'grade', 'user', 'peoples_grade']
     
     def create(self, validated_data):
         peoples_grade = validated_data.get('peoples_grade', 0)
         if validated_data.get('grade') > 10 or validated_data.get('grade') < 0:
-            raise Exception("enter the correct values from 1 to 10")
-        favorite = Favorite.objects.create(**validated_data,peoples_grade=peoples_grade+1)
-        favorite.save()
-        return favorite
+            raise Exception("enter the correct values from 0 to 10")
+        liked = Liked.objects.create(**validated_data,peoples_grade=peoples_grade+1)
+        liked.save()
+        return liked
 
-class FeaturedSerializer(serializers.ModelSerializer):
+class FavoriteSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Featured
+        model = Favorite
         fields = ['id', 'posts', 'user']
     
     def create(self, validated_data):
         posts = validated_data.pop('posts', None)
-        featured = Featured.objects.create(**validated_data)
-        featured.posts.set(posts)
-        return featured
+        favorite = Favorite.objects.create(**validated_data)
+        favorite.posts.set(posts)
+        return favorite
