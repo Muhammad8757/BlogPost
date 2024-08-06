@@ -20,35 +20,39 @@ class UserSerializer(serializers.ModelSerializer):
 class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
-        fields = ['id', 'title', 'content', 'created_at']
+        fields = ['id', 'title', 'description', 'content', 'created_at', 'user']
     
     def create(self, validated_data):
-        user = self.context['user']
-        post = Post.objects.create(**validated_data, user=user)
+        post = Post.objects.create(**validated_data)
         post.save()
         return post
 
 class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
-        fields = ['id', 'post', 'content', 'created_at']
+        fields = ['id', 'post', 'content', 'created_at', 'user']
 
     def create(self, validated_data):
-        user = self.context['user']
-        comment = Comment.objects.create(**validated_data, user=user)
+        comment = Comment.objects.create(**validated_data)
         comment.save()
         return comment
+    
+    def update(self, instance, validated_data):
+        instance.content = validated_data.get('content', instance.content)
+        instance.save()
+        return instance
     
 
 class FavoriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Favorite
-        fields = ['id', 'post', 'grade', 'peoples_grade']
+        fields = ['id', 'post', 'grade', 'user', 'peoples_grade']
     
     def create(self, validated_data):
-        user = self.context['user']
         peoples_grade = validated_data.get('peoples_grade', 0)
-        favorite = Favorite.objects.create(**validated_data ,user=user,peoples_grade=peoples_grade+1)
+        if validated_data.get('grade') > 10 or validated_data.get('grade') < 0:
+            raise Exception("enter the correct values from 1 to 10")
+        favorite = Favorite.objects.create(**validated_data,peoples_grade=peoples_grade+1)
         favorite.save()
         return favorite
 
@@ -58,8 +62,6 @@ class FeaturedSerializer(serializers.ModelSerializer):
         fields = ['id', 'posts', 'user']
     
     def create(self, validated_data):
-        user = self.context.get('user')
-        validated_data['user'] = user
         posts = validated_data.pop('posts', None)
         featured = Featured.objects.create(**validated_data)
         featured.posts.set(posts)

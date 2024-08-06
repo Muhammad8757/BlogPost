@@ -138,7 +138,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Blog Post API',
-    'DESCRIPTION': 'API for managing user budgets',
+    'DESCRIPTION': 'API blog post',
     'VERSION': '1.0.0',
     'AUTHENTICATION': [
         {
