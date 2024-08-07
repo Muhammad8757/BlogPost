@@ -1,6 +1,6 @@
 from rest_framework import mixins, status
 from rest_framework.viewsets import GenericViewSet
-from .serializers import FavoriteSerializer, PostSerializer, UserSerializer, CommentSerializer, LikedSerializer
+from .serializers import FavoriteSerializer, PostCreateUpdateSerializer, PostSerializer, UserSerializer, CommentSerializer, LikedSerializer
 from .models import Post, User, Comment, Liked, Favorite
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -106,44 +106,52 @@ class PostAPIView(AuthenticatedMixin,
         
 
     @extend_schema(
-    parameters=[
-        OpenApiParameter(name='title',location=OpenApiParameter.QUERY, required=True, type=str),
-        OpenApiParameter(name='content',location=OpenApiParameter.QUERY, required=True, type=str),
-        OpenApiParameter(name='description',location=OpenApiParameter.QUERY, required=True, type=str),
-        ],
-        request=None
+    request=PostCreateUpdateSerializer,
+    responses={201: PostSerializer}
     )
     def create(self, request):
         if request.user == User.objects.get(id=1):
             is_auth(request)
-            title = request.query_params.get('title', None)
-            description = request.query_params.get('description', None)
-            content = request.query_params.get('content', None)
-            serializer = PostSerializer(data={'title': title, 'content': content, 'description': description, 'user': request.user.id})
-            serializer.is_valid(raise_exception=True)
-            post = serializer.save()
+            serializer = PostCreateUpdateSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True) 
+            validated_data = serializer.validated_data
+            validated_data['user'] = request.user
+            post = serializer.create(validated_data)
             return Response(PostSerializer(post).data, status=status.HTTP_201_CREATED)
         else:
-            return Response({"detail": "not enough rights to create a post."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Not enough rights to create a post."}, status=status.HTTP_400_BAD_REQUEST)
         
     def list(self, request):
-        posts_info = Post.objects.values('id','title', 'description', 'user','created_at')
-        return Response({
-            "posts": list(posts_info),
+        posts_info = Post.objects.values('id', 'title', 'description', 'user', 'created_at', 'image')
+        ids = Post.objects.values_list('id', flat=True)
+        ratings = {}
+        for post_id in ids:
+            ratings[post_id] = self.average_rating(post_id)
+        posts_list = list(posts_info)
+        for post in posts_list:
+            """
+            цикл сделан с помощью ии
+            """
+            post_id = post['id']
+            post['rating'] = ratings.get(post_id, 0)  # Добавляем рейтинг к каждому посту
+        data = {
+            'posts': posts_list,
             'liked': LikedSerializer(Liked.objects.all(), many=True).data
-            })
+        }
+        
+        return Response(data)
     
 
-    
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        return Response(
-            {
-                "raiting": self.average_rating(instance.id),
-                'post': PostSerializer(instance).data,
-                'comment': CommentSerializer(Comment.objects.filter(post=instance), many=True).data,
-                'liked': LikedSerializer(Liked.objects.filter(post=instance), many=True).data,
-            })
+        post_data = PostCreateUpdateSerializer(instance).data
+        post_data.update({
+            'raiting': self.average_rating(instance.id),
+            'comments': CommentSerializer(Comment.objects.filter(post=instance), many=True).data,
+            'liked': LikedSerializer(Liked.objects.filter(post=instance), many=True).data,
+        })
+        return Response(post_data)
+
     
     def destroy(self, request, *args, **kwargs):
         if request.user == User.objects.get(id=1):
@@ -157,11 +165,31 @@ class PostAPIView(AuthenticatedMixin,
 @extend_schema(tags=['Comment'])
 class CommentAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
                     mixins.DestroyModelMixin,
-                    mixins.ListModelMixin,
                     GenericViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
 
+    def list(self, request, *args, **kwargs):
+        comments = Comment.objects.all()
+        serializer = CommentSerializer(comments, many=True)
+        serialized_comments = serializer.data
+        comments_with_users = []
+        for comment_data in serialized_comments:
+            """
+            цикл сделан с помощью ии
+            """
+            user_id = comment_data['user']
+            user_data = User.objects.filter(id=user_id).values('id', 'name').first()
+            comment_with_user = {
+                **comment_data,
+                'user': user_data if user_data else {}  # если пользователь не найден оставляем пустой словарь
+            }
+            comments_with_users.append(comment_with_user)
+        response_data = {
+            'comments': comments_with_users
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
+        
     @extend_schema(
         parameters=[
             OpenApiParameter(name='content', location=OpenApiParameter.QUERY, required=True, type=str),

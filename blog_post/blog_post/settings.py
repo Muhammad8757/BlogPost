@@ -137,6 +137,7 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
+    'COMPONENT_SPLIT_REQUEST': True,
     'TITLE': 'Blog Post API',
     'DESCRIPTION': 'API blog post',
     'VERSION': '1.0.0',

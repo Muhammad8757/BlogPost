@@ -16,7 +16,12 @@ class UserSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
-    
+
+
+class PostCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ['title', 'description', 'content', 'image']
 
 class PostSerializer(serializers.ModelSerializer):
     class Meta:
@@ -47,7 +52,7 @@ class CommentSerializer(serializers.ModelSerializer):
 class LikedSerializer(serializers.ModelSerializer):
     class Meta:
         model = Liked
-        fields = ['id', 'post', 'grade', 'user', 'peoples_grade']
+        fields = ['id', 'post', 'grade', 'user']
     
     def create(self, validated_data):
         grade = validated_data.get('grade')

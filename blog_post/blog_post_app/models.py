@@ -44,6 +44,7 @@ class Post(models.Model):
     description = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    image = models.FileField(upload_to='uploads/')
 
 class Comment(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
