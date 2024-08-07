@@ -9,6 +9,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.get('password')
+        if len(str(validated_data.get('phone_number', ''))) < 9:
+            raise Exception("enter more than 9 characters ")
         user = User.objects.create(
             name=validated_data['name'],
             phone_number=validated_data['phone_number']

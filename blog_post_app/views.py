@@ -2,16 +2,13 @@ from rest_framework import mixins, status
 from rest_framework.viewsets import GenericViewSet
 from .serializers import FavoriteSerializer, PostCreateUpdateSerializer, PostSerializer, UserSerializer, CommentSerializer, LikedSerializer
 from .models import Post, User, Comment, Liked, Favorite
-from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter
-from rest_framework.decorators import action, permission_classes, authentication_classes
+from rest_framework.decorators import action
 from .functions import AuthenticatedMixin, average_rating, is_auth, is_user_id_1
 @extend_schema(tags=['User'])
-class UserAPIView(mixins.CreateModelMixin,
-                  GenericViewSet):
+class UserAPIView(GenericViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     def create(self, request):
