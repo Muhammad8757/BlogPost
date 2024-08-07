@@ -8,18 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.decorators import action, permission_classes, authentication_classes
-
-def is_auth(request):
-    if not request.user.id:
-        return Response({"detail": "user not authentificated."}, status=status.HTTP_400_BAD_REQUEST)
-
-class AuthenticatedMixin:
-    def get_permissions(self):
-        if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
-            return [permission() for permission in [IsAuthenticated]]
-        return []
-
-
+from .functions import AuthenticatedMixin, average_rating, is_auth, is_user_id_1
 @extend_schema(tags=['User'])
 class UserAPIView(mixins.CreateModelMixin,
                   GenericViewSet):
@@ -49,7 +38,6 @@ class UserAPIView(mixins.CreateModelMixin,
         if phone_number and password:
             try:
                 user = User.objects.get(phone_number=phone_number)
-                
                 if user.check_password(password):
                     refresh = RefreshToken.for_user(user)
                     return Response({
@@ -65,19 +53,9 @@ class UserAPIView(mixins.CreateModelMixin,
 
 @extend_schema(tags=['Post'])
 class PostAPIView(AuthenticatedMixin,
-                   mixins.ListModelMixin,
                    GenericViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
-    
-    def average_rating(self, post_id):
-        grade = Liked.objects.filter(post_id=post_id).values_list('grade', flat=True)
-        peoples = Liked.objects.filter(post_id=post_id).values_list('peoples_grade', flat=True)
-        grade_list = list(grade)
-        peoples_list = list(peoples)
-        if not peoples:
-            return 0
-        return sum(grade_list) / len(peoples_list)
     
     @extend_schema(
     parameters=[
@@ -103,30 +81,26 @@ class PostAPIView(AuthenticatedMixin,
             return Response(serializer.data)
         else:
             return Response({"detail": "not enough rights to update a post."}, status=status.HTTP_400_BAD_REQUEST)
-        
-
+    
     @extend_schema(
     request=PostCreateUpdateSerializer,
     responses={201: PostSerializer}
     )
     def create(self, request):
-        if request.user == User.objects.get(id=1):
-            is_auth(request)
-            serializer = PostCreateUpdateSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True) 
-            validated_data = serializer.validated_data
-            validated_data['user'] = request.user
-            post = serializer.create(validated_data)
-            return Response(PostSerializer(post).data, status=status.HTTP_201_CREATED)
-        else:
-            return Response({"detail": "Not enough rights to create a post."}, status=status.HTTP_400_BAD_REQUEST)
+        is_user_id_1(request)
+        serializer = PostCreateUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True) 
+        validated_data = serializer.validated_data
+        validated_data['user'] = request.user
+        post = serializer.create(validated_data)
+        return Response(PostSerializer(post).data, status=status.HTTP_201_CREATED)
         
     def list(self, request):
         posts_info = Post.objects.values('id', 'title', 'description', 'user', 'created_at', 'image')
         ids = Post.objects.values_list('id', flat=True)
         ratings = {}
         for post_id in ids:
-            ratings[post_id] = self.average_rating(post_id)
+            ratings[post_id] = average_rating(post_id)
         posts_list = list(posts_info)
         for post in posts_list:
             """
@@ -138,28 +112,23 @@ class PostAPIView(AuthenticatedMixin,
             'posts': posts_list,
             'liked': LikedSerializer(Liked.objects.all(), many=True).data
         }
-        
         return Response(data)
     
-
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         post_data = PostCreateUpdateSerializer(instance).data
         post_data.update({
-            'raiting': self.average_rating(instance.id),
+            'raiting': average_rating(instance.id),
             'comments': CommentSerializer(Comment.objects.filter(post=instance), many=True).data,
             'liked': LikedSerializer(Liked.objects.filter(post=instance), many=True).data,
         })
         return Response(post_data)
-
     
     def destroy(self, request, *args, **kwargs):
-        if request.user == User.objects.get(id=1):
-            instance = self.get_object()
-            self.perform_destroy(instance)
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        else:
-            return Response({"detail": "not enough rights to delete a post."}, status=status.HTTP_400_BAD_REQUEST)
+        is_user_id_1(request)
+        instance = self.get_object()
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(tags=['Comment'])
@@ -266,11 +235,6 @@ class FavoriteAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
                    mixins.ListModelMixin,
                    GenericViewSet):
     serializer_class = FavoriteSerializer
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['user'] = self.request.user
-        return context
         
     @extend_schema(
     parameters=[
@@ -278,8 +242,6 @@ class FavoriteAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
     ],
     request=None
     )
-    @authentication_classes([JWTAuthentication])
-    @permission_classes([IsAuthenticated])
     def create(self, request):
         post_id = request.query_params.get('post')
         favorite = Favorite.objects.filter(user=request.user).first()
