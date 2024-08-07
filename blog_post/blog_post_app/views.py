@@ -35,21 +35,18 @@ class UserAPIView(mixins.CreateModelMixin,
     def login(self, request):
         phone_number = request.query_params.get('phone_number', None)
         password = request.query_params.get('password', None)
-        if phone_number and password:
-            try:
-                user = User.objects.get(phone_number=phone_number)
-                if user.check_password(password):
-                    refresh = RefreshToken.for_user(user)
-                    return Response({
-                        'refresh': str(refresh),
-                        'access': str(refresh.access_token)
-                    })
-                else:
-                    return Response({"detail": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
-            except User.DoesNotExist:
-                return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-        else:
-            return Response({"detail": "Phone number and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = User.objects.get(phone_number=phone_number)
+            if user.check_password(password):
+                refresh = RefreshToken.for_user(user)
+                return Response({
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token)
+                })
+            else:
+                return Response({"detail": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
 @extend_schema(tags=['Post'])
 class PostAPIView(AuthenticatedMixin,
