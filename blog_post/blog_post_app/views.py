@@ -1,4 +1,4 @@
-from rest_framework import mixins, status, serializers
+from rest_framework import mixins, status
 from rest_framework.viewsets import GenericViewSet
 from .serializers import FavoriteSerializer, PostSerializer, UserSerializer, CommentSerializer, LikedSerializer
 from .models import Post, User, Comment, Liked, Favorite
@@ -70,10 +70,9 @@ class PostAPIView(AuthenticatedMixin,
     queryset = Post.objects.all()
     serializer_class = PostSerializer
     
-    def average_rating(self):
-        posts = Post.objects.filter(user=1).values_list('id', flat=True)
-        grade = Liked.objects.filter(post_id__in=posts).values_list('grade', flat=True)
-        peoples = Liked.objects.filter(post_id__in=posts).values_list('peoples_grade', flat=True)
+    def average_rating(self, post_id):
+        grade = Liked.objects.filter(post_id=post_id).values_list('grade', flat=True)
+        peoples = Liked.objects.filter(post_id=post_id).values_list('peoples_grade', flat=True)
         grade_list = list(grade)
         peoples_list = list(peoples)
         if not peoples:
@@ -128,19 +127,19 @@ class PostAPIView(AuthenticatedMixin,
             return Response({"detail": "not enough rights to create a post."}, status=status.HTTP_400_BAD_REQUEST)
         
     def list(self, request):
-        posts = Post.objects.all()
-        raiting = self.average_rating()
+        posts_info = Post.objects.values('id','title', 'description', 'user','created_at')
         return Response({
-            "posts": self.get_serializer(posts, many=True).data,
-            'raiting': raiting,
-            'comments': CommentSerializer(Comment.objects.all(), many=True).data,
-            'rated': LikedSerializer(Liked.objects.all(), many=True).data
+            "posts": list(posts_info),
+            'liked': LikedSerializer(Liked.objects.all(), many=True).data
             })
+    
+
     
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         return Response(
             {
+                "raiting": self.average_rating(instance.id),
                 'post': PostSerializer(instance).data,
                 'comment': CommentSerializer(Comment.objects.filter(post=instance), many=True).data,
                 'liked': LikedSerializer(Liked.objects.filter(post=instance), many=True).data,
