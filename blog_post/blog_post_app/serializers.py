@@ -1,6 +1,6 @@
-from rest_framework import serializers
+from rest_framework import serializers, status
 from .models import User, Post, Comment, Liked, Favorite
-
+from rest_framework.response import Response
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -8,7 +8,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'phone_number', 'password']
 
     def create(self, validated_data):
-        password = validated_data.pop('password')
+        password = validated_data.get('password')
         user = User.objects.create(
             name=validated_data['name'],
             phone_number=validated_data['phone_number']
@@ -50,12 +50,17 @@ class LikedSerializer(serializers.ModelSerializer):
         fields = ['id', 'post', 'grade', 'user', 'peoples_grade']
     
     def create(self, validated_data):
-        peoples_grade = validated_data.get('peoples_grade', 0)
-        if validated_data.get('grade') > 10 or validated_data.get('grade') < 0:
-            raise Exception("enter the correct values from 0 to 10")
-        liked = Liked.objects.create(**validated_data,peoples_grade=peoples_grade+1)
-        liked.save()
-        return liked
+        grade = validated_data.get('grade')
+        if grade > 10 or grade < 0:
+            return Response("enter the correct values from 0 to 10", status=status.HTTP_400_BAD_REQUEST)
+        try:
+            liked_instance = Liked.objects.get(post=validated_data.get('post'), user=validated_data.get('user'))
+            liked_instance.peoples_grade += 1
+            liked_instance.save()
+            return liked_instance
+        except Liked.DoesNotExist:
+            validated_data['peoples_grade'] = 1
+            return super().create(validated_data)
 
 class FavoriteSerializer(serializers.ModelSerializer):
     class Meta:

@@ -1,4 +1,4 @@
-from rest_framework import mixins, status
+from rest_framework import mixins, status, serializers
 from rest_framework.viewsets import GenericViewSet
 from .serializers import FavoriteSerializer, PostSerializer, UserSerializer, CommentSerializer, LikedSerializer
 from .models import Post, User, Comment, Liked, Favorite
