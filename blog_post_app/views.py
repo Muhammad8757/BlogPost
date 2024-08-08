@@ -28,7 +28,9 @@ class UserAPIView(GenericViewSet):
         ],
         request=None
     )
+    #! Параметры указать по другому!!! Не использовать extend_schema!
     @action(detail=False, methods=["post"])
+    #! Слишком много логики в одном методе! Где SOLID?!
     def login(self, request):
         phone_number = request.query_params.get('phone_number', None)
         password = request.query_params.get('password', None)
@@ -59,6 +61,9 @@ class PostAPIView(AuthenticatedMixin,
         ],
         request=None
     )
+    #! Extend schema лишний! Вообще не нужен. Сделай по другому
+    #! Нельзя брать данные с параметров! Используй сериализатор,
+    #! для получения данных с клиента. Всегда нужно брать JSON!
     def update(self, request, **kwargs): #этот метод из исходника класса UpdateModelMixin
         if request.user == User.objects.get(id=1):
             is_auth(request)
@@ -76,20 +81,21 @@ class PostAPIView(AuthenticatedMixin,
         else:
             return Response({"detail": "not enough rights to update a post."}, status=status.HTTP_400_BAD_REQUEST)
     
-    @extend_schema(
+    @extend_schema( #! Лишнее
     request=PostCreateUpdateSerializer,
     responses={201: PostSerializer}
     )
     def create(self, request):
-        is_user_id_1(request)
+        is_user_id_1(request) #! Совсем ни на что не влияет.
         serializer = PostCreateUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True) 
         validated_data = serializer.validated_data
         validated_data['user'] = request.user
-        post = serializer.create(validated_data)
+        post = serializer.create(validated_data) #! Нужен метод save, а не create!
         return Response(PostSerializer(post).data, status=status.HTTP_201_CREATED)
         
     def list(self, request):
+        #! Зачем тогда вообще нужен сериализатор!!!!!!!!
         posts_info = Post.objects.all().values('id', 'title', 'description', 'user', 'created_at', 'image')
         posts = []
         ratings = {}
@@ -123,7 +129,7 @@ class PostAPIView(AuthenticatedMixin,
         return Response(post_data)
     
     def destroy(self, request, *args, **kwargs):
-        is_user_id_1(request)
+        is_user_id_1(request) #! Без полезен!
         instance = self.get_object()
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -137,6 +143,7 @@ class CommentAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
     serializer_class = CommentSerializer
 
     def list(self, request, *args, **kwargs):
+        #! Через сериализатор
         comments = Comment.objects.all().values('id', 'post', 'content', 'created_at', 'user')
         comments_with_users = []
         for comment in comments:
@@ -159,7 +166,7 @@ class CommentAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
         return Response(response_data, status=status.HTTP_200_OK)
 
         
-    @extend_schema(
+    @extend_schema( #! Без этого!
         parameters=[
             OpenApiParameter(name='content', location=OpenApiParameter.QUERY, required=True, type=str),
             OpenApiParameter(name='post', location=OpenApiParameter.QUERY, required=True, type=int),
@@ -179,7 +186,7 @@ class CommentAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
             instance._prefetched_objects_cache = {}
         return Response(serializer.data)
 
-    @extend_schema(
+    @extend_schema(#! Без этого!
         parameters=[
             OpenApiParameter(name='post', location=OpenApiParameter.QUERY, required=True, type=int),
             OpenApiParameter(name='content', location=OpenApiParameter.QUERY, required=True, type=str),
@@ -187,6 +194,7 @@ class CommentAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
         request=None
     )
     def create(self, request):
+        #! Данные берутся как json, и не через параметры!!!
         is_auth(request)
         post = request.query_params.get('post', None)
         content = request.query_params.get('content', None)
@@ -214,6 +222,7 @@ class LikedVAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
         request=None
     )
     def create(self, request):
+        #! Данные берутся как json, и не через параметры!!!
         is_auth(request)
         grade = request.query_params.get('grade', None)
         post = request.query_params.get('post', None)
@@ -243,6 +252,7 @@ class FavoriteAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
     request=None
     )
     def create(self, request):
+        #! Данные берутся как json, и не через параметры!!!
         post_id = request.query_params.get('post')
         favorite = Favorite.objects.filter(user=request.user).first()
         
