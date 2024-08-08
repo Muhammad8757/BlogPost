@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Django Debug",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/manage.py",
+        "args": [
+          "runserver"
+        ],
+        "django": true,
+        "env": {
+          "DJANGO_SETTINGS_MODULE": "BlogPost.settings"
+        },
+        "console": "integratedTerminal"
+      }
+    ]
+  }
+  

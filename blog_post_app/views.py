@@ -90,24 +90,28 @@ class PostAPIView(AuthenticatedMixin,
         return Response(PostSerializer(post).data, status=status.HTTP_201_CREATED)
         
     def list(self, request):
-        posts_info = Post.objects.values('id', 'title', 'description', 'user', 'created_at', 'image')
-        ids = Post.objects.values_list('id', flat=True)
+        posts_info = Post.objects.all().values('id', 'title', 'description', 'user', 'created_at', 'image')
+        posts = []
         ratings = {}
-        for post_id in ids:
-            ratings[post_id] = average_rating(post_id)
         posts_list = list(posts_info)
         for post in posts_list:
-            """
-            цикл сделан с помощью ии
-            """
             post_id = post['id']
-            post['rating'] = ratings.get(post_id, 0)  # Добавляем рейтинг к каждому посту
-        data = {
-            'posts': posts_list,
-            'liked': LikedSerializer(Liked.objects.all(), many=True).data
-        }
-        return Response(data)
-    
+            ratings[post_id] = average_rating(post_id)
+        for post in posts_list:
+            post_id = post['id']
+            data = {
+                'id': post['id'],
+                'title': post['title'],
+                'description': post['description'],
+                'user': post['user'],
+                'created_at': post['created_at'],
+                'image': post['image'],
+                'rating': ratings.get(post_id, 0)
+            }
+            posts.append(data)
+        
+        return Response(posts)
+
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         post_data = PostCreateUpdateSerializer(instance).data
@@ -133,25 +137,27 @@ class CommentAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
     serializer_class = CommentSerializer
 
     def list(self, request, *args, **kwargs):
-        comments = Comment.objects.all()
-        serializer = CommentSerializer(comments, many=True)
-        serialized_comments = serializer.data
+        comments = Comment.objects.all().values('id', 'post', 'content', 'created_at', 'user')
         comments_with_users = []
-        for comment_data in serialized_comments:
-            """
-            цикл сделан с помощью ии
-            """
-            user_id = comment_data['user']
+        for comment in comments:
+            user_id = comment.get('user')
             user_data = User.objects.filter(id=user_id).values('id', 'name').first()
             comment_with_user = {
-                **comment_data,
-                'user': user_data if user_data else {}  # если пользователь не найден оставляем пустой словарь
+                'id': comment['id'],
+                'content': comment['content'],
+                'post': comment['post'],
+                'created_at': comment['created_at'],
+                'user': {
+                    'user_id': user_data.get('id') if user_data else None,
+                    'user_name': user_data.get('name') if user_data else None
+                }
             }
             comments_with_users.append(comment_with_user)
         response_data = {
             'comments': comments_with_users
         }
         return Response(response_data, status=status.HTTP_200_OK)
+
         
     @extend_schema(
         parameters=[
