@@ -57,6 +57,7 @@ class LikedSerializer(serializers.ModelSerializer):
         fields = ['id', 'post', 'grade', 'user']
     
     def create(self, validated_data):
+        #! Для валидации данных используется другой метод!!!
         grade = validated_data.get('grade')
         if grade > 10 or grade < 0:
             return Response("enter the correct values from 0 to 10", status=status.HTTP_400_BAD_REQUEST)

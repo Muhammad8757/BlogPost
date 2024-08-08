@@ -5,9 +5,11 @@ from .models import Liked, User
 
 def is_auth(request):
     if not request.user.id:
+        #! Название функции и его задача не сходятся
         return Response({"detail": "user not authentificated."}, status=status.HTTP_400_BAD_REQUEST)
 
 class AuthenticatedMixin:
+    #! Бесполезный миксин. Совсем не нужен.
     def get_permissions(self):
         if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
             return [permission() for permission in [IsAuthenticated]]
@@ -23,5 +25,6 @@ def average_rating(post_id):
         return sum(grade_list) / len(peoples_list)
 
 def is_user_id_1(request):
+    #! Нет нет и нет. Так вообще нельзя!!!!!!!!!!!!!!!!!!!!!!!
     if request.user.id != 1:
         raise Exception("Not enough rights to create a post.")
