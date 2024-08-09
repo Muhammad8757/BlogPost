@@ -7,10 +7,13 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'name', 'phone_number', 'password']
 
+    def validate(self, data):
+        if len(str(data.get('phone_number', ''))) < 9:
+            raise Exception("enter more than 9 characters ")
+        return data
+
     def create(self, validated_data):
         password = validated_data.get('password')
-        if len(str(validated_data.get('phone_number', ''))) < 9:
-            raise Exception("enter more than 9 characters ")
         user = User.objects.create(
             name=validated_data['name'],
             phone_number=validated_data['phone_number']
@@ -19,9 +22,10 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
-class LoginSerializer(serializers.Serializer):
-    phone_number = serializers.CharField(max_length=15)  # или подходящая длина для номера телефона
-    password = serializers.CharField(write_only=True)
+class LoginSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['phone_nubmer', 'password']
 
 class PostCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
