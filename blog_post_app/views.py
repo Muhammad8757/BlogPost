@@ -86,7 +86,11 @@ class PostAPIView(AuthenticatedMixin,
     def destroy(self, request, *args, **kwargs):
         is_user_id_1(request)
         instance = self.get_object()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        if request.user == instance.user:
+            instance.delete()
+            return Response({"success"}, status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response({"error": "you can't delete this like"}, status=status.HTTP_400_BAD_REQUEST) 
 
 
 @extend_schema(tags=['Comment'])
