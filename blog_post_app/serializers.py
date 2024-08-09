@@ -22,10 +22,9 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
-class LoginSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['phone_nubmer', 'password']
+class LoginSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(max_length=15)
+    password = serializers.CharField(write_only=True)
 
 class PostCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:

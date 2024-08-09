@@ -65,7 +65,7 @@ class PostAPIView(AuthenticatedMixin,
         serializer.is_valid(raise_exception=True) 
         validated_data = serializer.validated_data
         validated_data['user'] = request.user
-        post = serializer.create(validated_data)
+        post = serializer.save()
         return Response(PostSerializer(post).data, status=status.HTTP_201_CREATED)
         
     def list(self, request):
