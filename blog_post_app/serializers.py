@@ -1,4 +1,6 @@
 from rest_framework import serializers, status
+
+from .functions import average_rating
 from .models import User, Post, Comment, Liked, Favorite
 from rest_framework.response import Response
 
@@ -25,10 +27,16 @@ class PostCreateUpdateSerializer(serializers.ModelSerializer):
         model = Post
         fields = ['title', 'description', 'content', 'image']
 
+class UserBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'name']
+
 class PostSerializer(serializers.ModelSerializer):
+    user = UserBriefSerializer(read_only=True)
     class Meta:
         model = Post
-        fields = ['id', 'title', 'description', 'content', 'created_at', 'user']
+        fields = ['id', 'title', 'description', 'content', 'image', 'created_at', 'user']
     
     def create(self, validated_data):
         post = Post.objects.create(**validated_data)
@@ -36,6 +44,7 @@ class PostSerializer(serializers.ModelSerializer):
         return post
 
 class CommentSerializer(serializers.ModelSerializer):
+    user = UserBriefSerializer(read_only=True)
     class Meta:
         model = Comment
         fields = ['id', 'post', 'content', 'created_at', 'user']
@@ -50,16 +59,30 @@ class CommentSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
     
+class PostListSerializer(serializers.ModelSerializer):
+    rating = serializers.SerializerMethodField()
 
+    class Meta:
+        model = Post
+        fields = ['id', 'title', 'description', 'user', 'created_at', 'image', 'rating']
+
+    def get_rating(self, obj):
+        return average_rating(obj.id)
+    
 class LikedSerializer(serializers.ModelSerializer):
+    user = UserBriefSerializer(read_only=True)
     class Meta:
         model = Liked
         fields = ['id', 'post', 'grade', 'user']
     
-    def create(self, validated_data):
-        grade = validated_data.get('grade')
+
+    def validate(self, data):
+        grade = data.get('grade')
         if grade > 10 or grade < 0:
-            return Response("enter the correct values from 0 to 10", status=status.HTTP_400_BAD_REQUEST)
+            raise serializers.ValidationError("Enter the correct values from 0 to 10")
+        return data
+        
+    def create(self, validated_data):
         try:
             liked_instance = Liked.objects.get(post=validated_data.get('post'), user=validated_data.get('user'))
             liked_instance.peoples_grade += 1
@@ -70,6 +93,7 @@ class LikedSerializer(serializers.ModelSerializer):
             return super().create(validated_data)
 
 class FavoriteSerializer(serializers.ModelSerializer):
+    user = UserBriefSerializer(read_only=True)
     class Meta:
         model = Favorite
         fields = ['id', 'posts', 'user']
