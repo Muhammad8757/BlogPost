@@ -1,13 +1,12 @@
 from rest_framework import mixins, status
 from rest_framework.viewsets import GenericViewSet
-from .serializers import FavoriteSerializer, PostCreateUpdateSerializer, PostSerializer, UserSerializer, CommentSerializer, LikedSerializer
+from .serializers import FavoriteSerializer, LoginSerializer, PostCreateUpdateSerializer, PostSerializer, UserSerializer, CommentSerializer, LikedSerializer
 from .models import Post, User, Comment, Liked, Favorite
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import action
 from .functions import AuthenticatedMixin, average_rating, is_auth, is_user_id_1
-from django.core.exceptions import MultipleObjectsReturned
 @extend_schema(tags=['User'])
 class UserAPIView(GenericViewSet):
     queryset = User.objects.all()
@@ -22,17 +21,13 @@ class UserAPIView(GenericViewSet):
             'access': str(refresh.access_token)
         }, status=status.HTTP_201_CREATED)
     
-    @extend_schema(
-    parameters=[
-        OpenApiParameter(name='phone_number',location=OpenApiParameter.QUERY, required=True, type=int),
-        OpenApiParameter(name='password',location=OpenApiParameter.QUERY, required=True, type=str),
-        ],
-        request=None
-    )
+    @extend_schema(request=LoginSerializer)
     @action(detail=False, methods=["post"])
     def login(self, request):
-        phone_number = request.query_params.get('phone_number', None)
-        password = request.query_params.get('password', None)
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        phone_number = serializer.validated_data['phone_number']
+        password = serializer.validated_data['password']
         try:
             user = User.objects.get(phone_number=phone_number)
             if user.check_password(password):
@@ -45,6 +40,7 @@ class UserAPIView(GenericViewSet):
                 return Response({"detail": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
         except User.DoesNotExist:
             return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
 @extend_schema(tags=['Post'])
 class PostAPIView(AuthenticatedMixin,
@@ -99,7 +95,7 @@ class CommentAPIView(AuthenticatedMixin, mixins.RetrieveModelMixin,
                     GenericViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
-#todo add logic to delete method
+
     def list(self, request):
         queryset = Comment.objects.all()
         serializer = CommentSerializer(queryset, many=True)

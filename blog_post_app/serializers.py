@@ -1,8 +1,6 @@
-from rest_framework import serializers, status
-
+from rest_framework import serializers
 from .functions import average_rating
 from .models import User, Post, Comment, Liked, Favorite
-from rest_framework.response import Response
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -21,6 +19,9 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
+class LoginSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(max_length=15)  # или подходящая длина для номера телефона
+    password = serializers.CharField(write_only=True)
 
 class PostCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
